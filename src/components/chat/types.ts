@@ -15,7 +15,7 @@ export interface Message {
   viewed?: boolean;
 }
 
-export const SOCKET_URL = "http://localhost:3001";
+export const SOCKET_URL = process.env.NEXT_PUBLIC_SOCKET_URL || "http://localhost:3001";
 
 export const MAX_IMAGE_SIZE = 1024 * 1024; // 1MB after compression
 export const MAX_VIDEO_SIZE = 5 * 1024 * 1024; // 5MB for video/gif

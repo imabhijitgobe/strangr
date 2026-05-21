@@ -1,7 +1,7 @@
 import { createServer } from "http";
 import { Server, Socket } from "socket.io";
 
-const PORT = 3001;
+const PORT = parseInt(process.env.PORT || "3001", 10);
 
 interface WaitingUser {
   socket: Socket;
@@ -16,7 +16,11 @@ interface UserCountry {
 const httpServer = createServer();
 const io = new Server(httpServer, {
   cors: {
-    origin: ["http://localhost:3000"],
+    origin: [
+      "http://localhost:3000",
+      "https://strangr.onrender.com",
+      /\.onrender\.com$/,
+    ],
     methods: ["GET", "POST"],
   },
   maxHttpBufferSize: 6e6, // 6MB for base64 video/images
