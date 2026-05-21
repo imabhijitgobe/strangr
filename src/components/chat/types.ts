@@ -29,3 +29,8 @@ export function countryCodeToFlag(code: string): string {
     .map((char) => 127397 + char.charCodeAt(0));
   return String.fromCodePoint(...codePoints);
 }
+
+// Generate unique ID (works in non-secure contexts unlike crypto.randomUUID)
+export function generateId(): string {
+  return Math.random().toString(36).substring(2) + Date.now().toString(36);
+}

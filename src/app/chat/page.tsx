@@ -12,6 +12,7 @@ import {
   MAX_VIDEO_SIZE,
   DEFAULT_TIMER,
   countryCodeToFlag,
+  generateId,
 } from "@/components/chat/types";
 import { ChatHeader } from "@/components/chat/chat-header";
 import { IdleScreen } from "@/components/chat/idle-screen";
@@ -101,7 +102,7 @@ export default function ChatPage() {
       setMessages((prev) => [
         ...prev,
         {
-          id: crypto.randomUUID(),
+          id: generateId(),
           content: matchMsg,
           sender: "system",
           timestamp: new Date(),
@@ -123,7 +124,7 @@ export default function ChatPage() {
         setMessages((prev) => [
           ...prev,
           {
-            id: crypto.randomUUID(),
+            id: generateId(),
             content: data.content,
             sender: "stranger",
             timestamp: new Date(data.timestamp),
@@ -143,7 +144,7 @@ export default function ChatPage() {
         setMessages((prev) => [
           ...prev,
           {
-            id: crypto.randomUUID(),
+            id: generateId(),
             content: `View-once ${label}`,
             sender: "stranger",
             timestamp: new Date(data.timestamp),
@@ -163,7 +164,7 @@ export default function ChatPage() {
       setMessages((prev) => [
         ...prev,
         {
-          id: crypto.randomUUID(),
+          id: generateId(),
           content: "",
           sender: "you",
           timestamp: new Date(data.timestamp),
@@ -213,7 +214,7 @@ export default function ChatPage() {
       setMessages((prev) => [
         ...prev,
         {
-          id: crypto.randomUUID(),
+          id: generateId(),
           content: msg,
           sender: "system",
           timestamp: new Date(),
@@ -226,7 +227,7 @@ export default function ChatPage() {
       setMessages((prev) => [
         ...prev,
         {
-          id: crypto.randomUUID(),
+          id: generateId(),
           content: "Stranger has switched to another tab.",
           sender: "system",
           timestamp: new Date(),
@@ -239,7 +240,7 @@ export default function ChatPage() {
       setMessages((prev) => [
         ...prev,
         {
-          id: crypto.randomUUID(),
+          id: generateId(),
           content: "Stranger is back.",
           sender: "system",
           timestamp: new Date(),
@@ -275,7 +276,7 @@ export default function ChatPage() {
           setMessages((prev) => [
             ...prev,
             {
-              id: crypto.randomUUID(),
+              id: generateId(),
               content: "You have disconnected.",
               sender: "system",
               timestamp: new Date(),
@@ -285,7 +286,7 @@ export default function ChatPage() {
           setStatus("searching");
           setMessages([
             {
-              id: crypto.randomUUID(),
+              id: generateId(),
               content: "Looking for someone to chat with...",
               sender: "system",
               timestamp: new Date(),
@@ -329,7 +330,7 @@ export default function ChatPage() {
     setStatus("searching");
     setMessages([
       {
-        id: crypto.randomUUID(),
+        id: generateId(),
         content: "Looking for someone to chat with...",
         sender: "system",
         timestamp: new Date(),
@@ -347,7 +348,7 @@ export default function ChatPage() {
     setMessages((prev) => [
       ...prev,
       {
-        id: crypto.randomUUID(),
+        id: generateId(),
         content: "You have disconnected.",
         sender: "system",
         timestamp: new Date(),
@@ -374,7 +375,7 @@ export default function ChatPage() {
     setMessages((prev) => [
       ...prev,
       {
-        id: crypto.randomUUID(),
+        id: generateId(),
         content,
         sender: "you",
         timestamp: new Date(),
@@ -397,7 +398,7 @@ export default function ChatPage() {
       setMessages((prev) => [
         ...prev,
         {
-          id: crypto.randomUUID(),
+          id: generateId(),
           content: "Unsupported file type. Send images, GIFs, or videos.",
           sender: "system",
           timestamp: new Date(),
@@ -413,7 +414,7 @@ export default function ChatPage() {
       setMessages((prev) => [
         ...prev,
         {
-          id: crypto.randomUUID(),
+          id: generateId(),
           content: `File too large. Max ${limitLabel} for ${isVideo ? "videos" : "images/GIFs"}.`,
           sender: "system",
           timestamp: new Date(),
@@ -441,7 +442,7 @@ export default function ChatPage() {
       setMessages((prev) => [
         ...prev,
         {
-          id: crypto.randomUUID(),
+          id: generateId(),
           content: "File too large after encoding. Try a smaller file.",
           sender: "system",
           timestamp: new Date(),
