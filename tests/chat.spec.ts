@@ -36,8 +36,8 @@ test.describe("Chat Page - UI States", () => {
     await page.getByRole("button", { name: /START CHATTING/i }).click();
     await expect(page.getByText("Looking for someone")).toBeVisible();
 
-    await page.getByRole("button", { name: /Cancel/i }).click();
-    await expect(page.getByText("Text Chat")).toBeVisible();
+    await page.getByText("Cancel").click();
+    await expect(page.getByRole("heading", { name: "Text Chat" })).toBeVisible({ timeout: 5000 });
   });
 
   test("header shows Strangr logo linking to home", async ({ page }) => {
@@ -61,6 +61,10 @@ test.describe("Chat Page - Two Users Matching", () => {
 
     await page1.goto("/chat");
     await page2.goto("/chat");
+
+    // Wait for socket to connect
+    await page1.waitForTimeout(1000);
+    await page2.waitForTimeout(1000);
 
     // User 1 starts searching
     await page1.getByRole("button", { name: /START CHATTING/i }).click();

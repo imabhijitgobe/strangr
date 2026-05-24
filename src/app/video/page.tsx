@@ -220,6 +220,11 @@ export default function VideoPage() {
 
     socket.on("connect-accepted", (data: { roomId: string; roomCode: string }) => {
       setConnectState("none");
+      // Check if room already exists (same browser / same user in two tabs)
+      const existingRooms = JSON.parse(localStorage.getItem("strangr_rooms") || "[]");
+      if (existingRooms.some((r: any) => r.roomId === data.roomId)) {
+        return; // Already saved by the other tab
+      }
       setConnectSuccess(data);
       saveRoom({
         roomId: data.roomId,

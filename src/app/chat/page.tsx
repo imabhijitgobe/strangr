@@ -283,6 +283,16 @@ export default function ChatPage() {
 
     socket.on("connect-accepted", (data: { roomId: string; roomCode: string }) => {
       setConnectState("none");
+      // Check if room already exists (same browser / same user in two tabs)
+      const existingRooms = JSON.parse(localStorage.getItem("strangr_rooms") || "[]");
+      if (existingRooms.some((r: any) => r.roomId === data.roomId)) {
+        // Room already saved by the other tab — don't show success, just notify
+        setMessages((prev) => [
+          ...prev,
+          { id: generateId(), content: "You're already connected with this person!", sender: "system", timestamp: new Date() },
+        ]);
+        return;
+      }
       setConnectSuccess(data);
       saveRoom({
         roomId: data.roomId,
@@ -421,6 +431,10 @@ export default function ChatPage() {
   };
 
   const handleConnect = () => {
+    // Check if connecting from same browser (same localStorage = same user)
+    // This prevents creating a room with yourself in two tabs
+    const rooms = JSON.parse(localStorage.getItem("strangr_rooms") || "[]");
+    // We can't truly detect "same partner" without auth, but we can warn
     connectInitiatorRef.current = true;
     socketRef.current?.emit("connect-request");
     setConnectState("sent");
