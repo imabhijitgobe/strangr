@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, ImageIcon, Send, SkipForward } from "lucide-react";
+import { ArrowRight, ImageIcon, Send, SkipForward, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ChatStatus } from "@/components/chat/types";
 
@@ -16,6 +16,7 @@ interface ActionBarProps {
   fileInputRef: React.RefObject<HTMLInputElement | null>;
   inputRef: React.RefObject<HTMLInputElement | null>;
   partnerCountry?: { name: string; flag: string } | null;
+  onConnect?: () => void;
 }
 
 export function ActionBar({
@@ -30,6 +31,7 @@ export function ActionBar({
   fileInputRef,
   inputRef,
   partnerCountry,
+  onConnect,
 }: ActionBarProps) {
   return (
     <div className="border-t py-2 shrink-0">
@@ -72,6 +74,18 @@ export function ActionBar({
           >
             <Send className="h-4 w-4" />
           </Button>
+          {onConnect && (
+            <Button
+              type="button"
+              onClick={onConnect}
+              variant="outline"
+              className="h-10 rounded-none font-mono text-xs cursor-pointer border-[#FF6B2C] text-[#FF6B2C] hover:bg-[#FF6B2C]/10"
+              aria-label="Send connection request"
+            >
+              <Link2 className="h-4 w-4 mr-1" />
+              <span className="hidden sm:inline">CONNECT</span>
+            </Button>
+          )}
           <Button
             type="button"
             onClick={onDisconnect}

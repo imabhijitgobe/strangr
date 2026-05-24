@@ -19,6 +19,13 @@ interface UserCountry {
   flag: string;
 }
 
+function generateRoomCode(): string {
+  const words = ["WOLF","BEAR","LYNX","HAWK","DEER","FOXS","LION","PUMA","CROW","DOVE","FROG","GOAT","HARE","JADE","KITE","LARK","MOTH","NEWT","ORCA","PIKE"];
+  const word = words[Math.floor(Math.random() * words.length)];
+  const num = Math.floor(Math.random() * 90 + 10).toString();
+  return word + num;
+}
+
 app.prepare().then(() => {
   const httpServer = createServer((req, res) => {
     handle(req, res);
@@ -90,8 +97,10 @@ app.prepare().then(() => {
         activeSessions.set(socket.id, match.socket.id);
         activeSessions.set(match.socket.id, socket.id);
 
-        socket.emit("partner-found", { matchedInterests, country: userCountries.get(match.socket.id) || null });
+        // The user who was ALREADY waiting (match) receives partner-found and creates the offer
+        // The user who just joined (socket) will receive the offer via webrtc-offer event
         match.socket.emit("partner-found", { matchedInterests, country: userCountries.get(socket.id) || null });
+        socket.emit("partner-found-wait", { matchedInterests, country: userCountries.get(match.socket.id) || null });
       } else {
         waitingQueue.push(user);
         socket.emit("waiting");
@@ -155,6 +164,88 @@ app.prepare().then(() => {
       waitingQueue = waitingQueue.filter((u) => u.socket.id !== socket.id);
     });
 
+    // --- Connection Request Flow ---
+    socket.on("connect-request", () => {
+      const partnerId = activeSessions.get(socket.id);
+      if (!partnerId) return;
+      io.sockets.sockets.get(partnerId)?.emit("connect-request-received");
+    });
+
+    socket.on("connect-accept", () => {
+      const partnerId = activeSessions.get(socket.id);
+      if (!partnerId) return;
+      const roomId = Math.random().toString(36).substring(2) + Date.now().toString(36);
+      const roomCode = generateRoomCode();
+      socket.emit("connect-accepted", { roomId, roomCode });
+      io.sockets.sockets.get(partnerId)?.emit("connect-accepted", { roomId, roomCode });
+    });
+
+    socket.on("connect-decline", () => {
+      const partnerId = activeSessions.get(socket.id);
+      if (!partnerId) return;
+      io.sockets.sockets.get(partnerId)?.emit("connect-declined");
+    });
+
+    // --- Private Room Messaging ---
+    socket.on("join-room", (data: { roomId: string; alias: string }) => {
+      socket.join(`room:${data.roomId}`);
+      socket.data.roomId = data.roomId;
+      socket.data.roomAlias = data.alias;
+      // Notify others in the room
+      socket.to(`room:${data.roomId}`).emit("room-partner-joined");
+    });
+
+    socket.on("leave-room", (data: { roomId: string }) => {
+      socket.leave(`room:${data.roomId}`);
+      socket.to(`room:${data.roomId}`).emit("room-partner-left");
+    });
+
+    socket.on("room-send-message", (data: { roomId: string; content: string; sender: string }) => {
+      socket.to(`room:${data.roomId}`).emit("room-message", {
+        content: data.content,
+        sender: data.sender,
+        timestamp: new Date().toISOString(),
+      });
+    });
+
+    socket.on("room-send-media", (data: { roomId: string; sender: string; mediaData: string; mimeType: string; mediaKind: string; timer: number }) => {
+      if (data.mediaData.length > 6_000_000) return;
+      socket.to(`room:${data.roomId}`).emit("room-media", {
+        sender: data.sender,
+        mediaData: data.mediaData,
+        mimeType: data.mimeType,
+        mediaKind: data.mediaKind,
+        timer: data.timer,
+        timestamp: new Date().toISOString(),
+      });
+    });
+
+    socket.on("room-media-viewed", (data: { roomId: string }) => {
+      socket.to(`room:${data.roomId}`).emit("room-media-viewed");
+    });
+
+    socket.on("room-delete", (data: { roomId: string }) => {
+      socket.to(`room:${data.roomId}`).emit("room-deleted");
+      // Also leave the room
+      socket.leave(`room:${data.roomId}`);
+    });
+
+    // --- WebRTC Signaling ---
+    socket.on("webrtc-offer", (data: { offer: RTCSessionDescriptionInit }) => {
+      const partnerId = activeSessions.get(socket.id);
+      if (partnerId) io.sockets.sockets.get(partnerId)?.emit("webrtc-offer", { offer: data.offer });
+    });
+
+    socket.on("webrtc-answer", (data: { answer: RTCSessionDescriptionInit }) => {
+      const partnerId = activeSessions.get(socket.id);
+      if (partnerId) io.sockets.sockets.get(partnerId)?.emit("webrtc-answer", { answer: data.answer });
+    });
+
+    socket.on("webrtc-ice-candidate", (data: { candidate: RTCIceCandidateInit }) => {
+      const partnerId = activeSessions.get(socket.id);
+      if (partnerId) io.sockets.sockets.get(partnerId)?.emit("webrtc-ice-candidate", { candidate: data.candidate });
+    });
+
     socket.on("disconnect", () => {
       const partnerId = activeSessions.get(socket.id);
       if (partnerId) {
@@ -164,6 +255,11 @@ app.prepare().then(() => {
       activeSessions.delete(socket.id);
       userCountries.delete(socket.id);
       waitingQueue = waitingQueue.filter((u) => u.socket.id !== socket.id);
+
+      // Notify room if user was in one
+      if (socket.data.roomId) {
+        socket.to(`room:${socket.data.roomId}`).emit("room-partner-left");
+      }
     });
   });
 

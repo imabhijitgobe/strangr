@@ -2,9 +2,10 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { MessageSquare, Video, Globe } from "lucide-react";
+import { MessageSquare, Video, Globe, Users, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { getSavedRooms } from "@/lib/rooms";
 
 const labels = [
   { icon: MessageSquare, label: "Text Chat" },
@@ -13,6 +14,11 @@ const labels = [
 ];
 
 export default function HeroSection() {
+  const [roomCount, setRoomCount] = React.useState(0);
+
+  React.useEffect(() => {
+    setRoomCount(getSavedRooms().length);
+  }, []);
   return (
     <section className="py-16 sm:py-24">
       <div className="flex flex-col items-center text-center px-2">
@@ -99,15 +105,37 @@ export default function HeroSection() {
               TEXT CHAT
             </Button>
           </Link>
-          <Button
-            size="lg"
-            variant="outline"
-            className="w-full sm:w-auto cursor-pointer rounded-none font-mono border-[#FF6B2C] text-[#FF6B2C] hover:bg-[#FF6B2C]/10"
-          >
-            <Video className="mr-2 w-4 h-4" />
-            VIDEO CHAT
-          </Button>
+          <Link href="/video" className="w-full sm:w-auto">
+            <Button
+              size="lg"
+              variant="outline"
+              className="w-full sm:w-auto cursor-pointer rounded-none font-mono border-[#FF6B2C] text-[#FF6B2C] hover:bg-[#FF6B2C]/10"
+            >
+              <Video className="mr-2 w-4 h-4" />
+              VIDEO CHAT
+            </Button>
+          </Link>
         </motion.div>
+
+        {roomCount > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 2.0, duration: 0.5 }}
+            className="mt-4"
+          >
+            <Link
+              href="/rooms"
+              className="inline-flex items-center gap-2 px-4 py-2 bg-muted/50 hover:bg-muted border border-border rounded-lg font-mono text-sm cursor-pointer transition-colors"
+            >
+              <Users className="h-4 w-4 text-[#FF6B2C]" />
+              <span>
+                💬 You have {roomCount} connection{roomCount !== 1 ? "s" : ""}
+              </span>
+              <ArrowRight className="h-3 w-3 text-muted-foreground" />
+            </Link>
+          </motion.div>
+        )}
 
         <motion.div
           initial={{ opacity: 0 }}

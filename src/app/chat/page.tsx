@@ -22,6 +22,9 @@ import { TypingIndicator } from "@/components/chat/typing-indicator";
 import { ActionBar } from "@/components/chat/action-bar";
 import { MediaViewer } from "@/components/chat/media-viewer";
 import { TimerPrompt } from "@/components/chat/timer-prompt";
+import { ConnectRequest } from "@/components/chat/connect-request";
+import { ConnectSuccess } from "@/components/chat/connect-success";
+import { saveRoom } from "@/lib/rooms";
 
 export default function ChatPage() {
   const [status, setStatus] = React.useState<ChatStatus>("idle");
@@ -37,6 +40,8 @@ export default function ChatPage() {
   const [pendingFile, setPendingFile] = React.useState<File | null>(null);
   const [showTimerPrompt, setShowTimerPrompt] = React.useState(false);
   const [partnerCountry, setPartnerCountry] = React.useState<{ name: string; flag: string } | null>(null);
+  const [connectState, setConnectState] = React.useState<"none" | "sent" | "received">("none");
+  const [connectSuccess, setConnectSuccess] = React.useState<{ roomId: string; roomCode: string } | null>(null);
 
   const socketRef = React.useRef<Socket | null>(null);
   const statusRef = React.useRef<ChatStatus>(status);
@@ -46,6 +51,7 @@ export default function ChatPage() {
   const inputRef = React.useRef<HTMLInputElement>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const typingTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+  const connectInitiatorRef = React.useRef<boolean>(false);
 
   // Keep refs in sync
   React.useEffect(() => {
@@ -92,6 +98,27 @@ export default function ChatPage() {
 
     // Partner found
     socket.on("partner-found", (data: { matchedInterests: string[]; country?: { name: string; flag: string } }) => {
+      setStatus("connected");
+      setPartnerCountry(data.country || null);
+      const matchMsg =
+        data.matchedInterests.length > 0
+          ? `You're now chatting with a random stranger. You both like: ${data.matchedInterests.join(", ")}`
+          : "You're now chatting with a random stranger. Say hi!";
+
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: generateId(),
+          content: matchMsg,
+          sender: "system",
+          timestamp: new Date(),
+        },
+      ]);
+      inputRef.current?.focus();
+    });
+
+    // Same handler for the non-initiator side
+    socket.on("partner-found-wait", (data: { matchedInterests: string[]; country?: { name: string; flag: string } }) => {
       setStatus("connected");
       setPartnerCountry(data.country || null);
       const matchMsg =
@@ -204,6 +231,7 @@ export default function ChatPage() {
     socket.on("partner-disconnected", (data?: { reason?: string }) => {
       setStatus("disconnected");
       setIsPartnerTyping(false);
+      setConnectState("none");
 
       const reason = data?.reason;
       const msg =
@@ -246,6 +274,27 @@ export default function ChatPage() {
           timestamp: new Date(),
         },
       ]);
+    });
+
+    // --- Connection Request Flow ---
+    socket.on("connect-request-received", () => {
+      setConnectState("received");
+    });
+
+    socket.on("connect-accepted", (data: { roomId: string; roomCode: string }) => {
+      setConnectState("none");
+      setConnectSuccess(data);
+      saveRoom({
+        roomId: data.roomId,
+        roomCode: data.roomCode,
+        alias: connectInitiatorRef.current ? "Person 1" : "Person 2",
+        createdAt: new Date().toISOString(),
+        lastVisitedAt: null,
+      });
+    });
+
+    socket.on("connect-declined", () => {
+      setConnectState("none");
     });
 
     return () => {
@@ -337,6 +386,9 @@ export default function ChatPage() {
       },
     ]);
     setIsPartnerTyping(false);
+    setConnectState("none");
+    setConnectSuccess(null);
+    connectInitiatorRef.current = false;
     socketRef.current?.emit("find-partner", { interests, country: myCountryRef.current });
   };
 
@@ -345,6 +397,8 @@ export default function ChatPage() {
     setStatus("disconnected");
     setIsPartnerTyping(false);
     setPartnerCountry(null);
+    setConnectState("none");
+    setConnectSuccess(null);
     setMessages((prev) => [
       ...prev,
       {
@@ -364,6 +418,21 @@ export default function ChatPage() {
     socketRef.current?.emit("cancel-search");
     setStatus("idle");
     setMessages([]);
+  };
+
+  const handleConnect = () => {
+    connectInitiatorRef.current = true;
+    socketRef.current?.emit("connect-request");
+    setConnectState("sent");
+  };
+
+  const handleAcceptConnect = () => {
+    socketRef.current?.emit("connect-accept");
+  };
+
+  const handleDeclineConnect = () => {
+    socketRef.current?.emit("connect-decline");
+    setConnectState("none");
   };
 
   const handleSendMessage = (e: React.FormEvent) => {
@@ -660,6 +729,7 @@ export default function ChatPage() {
               fileInputRef={fileInputRef}
               inputRef={inputRef}
               partnerCountry={partnerCountry}
+              onConnect={handleConnect}
             />
           </>
         )}
@@ -677,6 +747,38 @@ export default function ChatPage() {
         onConfirm={handleTimerConfirm}
         onCancel={handleTimerCancel}
       />
+
+      {connectState !== "none" && (
+        <ConnectRequest
+          type={connectState}
+          onAccept={handleAcceptConnect}
+          onDecline={handleDeclineConnect}
+          onClose={() => setConnectState("none")}
+        />
+      )}
+
+      {connectSuccess && (
+        <ConnectSuccess
+          roomId={connectSuccess.roomId}
+          roomCode={connectSuccess.roomCode}
+          onGoToRoom={(roomName) => {
+            if (roomName) {
+              const rooms = JSON.parse(localStorage.getItem("strangr_rooms") || "[]");
+              const idx = rooms.findIndex((r: any) => r.roomId === connectSuccess.roomId);
+              if (idx >= 0) { rooms[idx].roomName = roomName; localStorage.setItem("strangr_rooms", JSON.stringify(rooms)); }
+            }
+            window.location.href = `/room/${connectSuccess.roomId}`;
+          }}
+          onContinue={(roomName) => {
+            if (roomName) {
+              const rooms = JSON.parse(localStorage.getItem("strangr_rooms") || "[]");
+              const idx = rooms.findIndex((r: any) => r.roomId === connectSuccess.roomId);
+              if (idx >= 0) { rooms[idx].roomName = roomName; localStorage.setItem("strangr_rooms", JSON.stringify(rooms)); }
+            }
+            setConnectSuccess(null);
+          }}
+        />
+      )}
     </div>
   );
 }
