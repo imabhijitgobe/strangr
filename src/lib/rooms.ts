@@ -4,7 +4,7 @@ export interface SavedRoom {
   roomId: string;
   roomCode: string;
   roomName?: string;
-  alias: "Person 1" | "Person 2";
+  alias: string;
   createdAt: string;
   lastVisitedAt: string | null;
 }

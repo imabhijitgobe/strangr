@@ -187,30 +187,35 @@ app.prepare().then(() => {
     });
 
     // --- Private Room Messaging ---
-    socket.on("join-room", (data: { roomId: string; alias: string }) => {
-      socket.join(`room:${data.roomId}`);
+    socket.on("join-room", (data: { roomId: string; roomCode?: string; alias: string }) => {
+      // Use roomCode as the channel so all users with the same code join the same room
+      const channel = data.roomCode ? `room:${data.roomCode}` : `room:${data.roomId}`;
+      socket.join(channel);
       socket.data.roomId = data.roomId;
+      socket.data.roomChannel = channel;
       socket.data.roomAlias = data.alias;
-      // Notify others in the room
-      socket.to(`room:${data.roomId}`).emit("room-partner-joined");
+      socket.to(channel).emit("room-member-joined", { alias: data.alias });
     });
 
     socket.on("leave-room", (data: { roomId: string }) => {
-      socket.leave(`room:${data.roomId}`);
-      socket.to(`room:${data.roomId}`).emit("room-partner-left");
+      const channel = socket.data.roomChannel || `room:${data.roomId}`;
+      socket.to(channel).emit("room-member-left", { alias: socket.data.roomAlias });
+      socket.leave(channel);
     });
 
-    socket.on("room-send-message", (data: { roomId: string; content: string; sender: string }) => {
-      socket.to(`room:${data.roomId}`).emit("room-message", {
+    socket.on("room-send-message", (data: { roomId: string; content: string; sender: string; roomCode?: string }) => {
+      const channel = data.roomCode ? `room:${data.roomCode}` : `room:${data.roomId}`;
+      socket.to(channel).emit("room-message", {
         content: data.content,
         sender: data.sender,
         timestamp: new Date().toISOString(),
       });
     });
 
-    socket.on("room-send-media", (data: { roomId: string; sender: string; mediaData: string; mimeType: string; mediaKind: string; timer: number }) => {
+    socket.on("room-send-media", (data: { roomId: string; sender: string; mediaData: string; mimeType: string; mediaKind: string; timer: number; roomCode?: string }) => {
       if (data.mediaData.length > 6_000_000) return;
-      socket.to(`room:${data.roomId}`).emit("room-media", {
+      const channel = data.roomCode ? `room:${data.roomCode}` : `room:${data.roomId}`;
+      socket.to(channel).emit("room-media", {
         sender: data.sender,
         mediaData: data.mediaData,
         mimeType: data.mimeType,
@@ -220,14 +225,15 @@ app.prepare().then(() => {
       });
     });
 
-    socket.on("room-media-viewed", (data: { roomId: string }) => {
-      socket.to(`room:${data.roomId}`).emit("room-media-viewed");
+    socket.on("room-media-viewed", (data: { roomId: string; roomCode?: string }) => {
+      const channel = data.roomCode ? `room:${data.roomCode}` : `room:${data.roomId}`;
+      socket.to(channel).emit("room-media-viewed");
     });
 
-    socket.on("room-delete", (data: { roomId: string }) => {
-      socket.to(`room:${data.roomId}`).emit("room-deleted");
-      // Also leave the room
-      socket.leave(`room:${data.roomId}`);
+    socket.on("room-delete", (data: { roomId: string; roomCode?: string }) => {
+      const channel = data.roomCode ? `room:${data.roomCode}` : `room:${data.roomId}`;
+      socket.to(channel).emit("room-deleted");
+      socket.leave(channel);
     });
 
     // --- WebRTC Signaling ---
@@ -257,8 +263,8 @@ app.prepare().then(() => {
       waitingQueue = waitingQueue.filter((u) => u.socket.id !== socket.id);
 
       // Notify room if user was in one
-      if (socket.data.roomId) {
-        socket.to(`room:${socket.data.roomId}`).emit("room-partner-left");
+      if (socket.data.roomChannel) {
+        socket.to(socket.data.roomChannel).emit("room-member-left", { alias: socket.data.roomAlias });
       }
     });
   });

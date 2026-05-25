@@ -12,6 +12,7 @@ interface AddRoomInputProps {
 
 export function AddRoomInput({ onRoomAdded }: AddRoomInputProps) {
   const [code, setCode] = React.useState("");
+  const [alias, setAlias] = React.useState("");
   const [error, setError] = React.useState("");
 
   const validateCode = (value: string): boolean => {
@@ -40,12 +41,13 @@ export function AddRoomInput({ onRoomAdded }: AddRoomInputProps) {
     saveRoom({
       roomId: generateId(),
       roomCode: trimmed,
-      alias: "Person 2",
+      alias: alias.trim() || "Person",
       createdAt: new Date().toISOString(),
       lastVisitedAt: null,
     });
 
     setCode("");
+    setAlias("");
     setError("");
     onRoomAdded();
   };
@@ -73,6 +75,14 @@ export function AddRoomInput({ onRoomAdded }: AddRoomInputProps) {
           onKeyDown={handleKeyDown}
           placeholder="e.g., WOLF42"
           maxLength={6}
+          className="flex-1 h-10 border bg-background px-3 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-[#FF6B2C] focus:outline-none focus:ring-1 focus:ring-[#FF6B2C]/30 transition-colors duration-200 rounded-lg"
+        />
+        <input
+          type="text"
+          value={alias}
+          onChange={(e) => setAlias(e.target.value)}
+          placeholder="Your name in this room"
+          maxLength={20}
           className="flex-1 h-10 border bg-background px-3 font-mono text-sm text-foreground placeholder:text-muted-foreground focus:border-[#FF6B2C] focus:outline-none focus:ring-1 focus:ring-[#FF6B2C]/30 transition-colors duration-200 rounded-lg"
         />
         <Button

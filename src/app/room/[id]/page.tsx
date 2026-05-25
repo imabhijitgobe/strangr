@@ -15,7 +15,7 @@ import { TimerPrompt } from "@/components/chat/timer-prompt";
 interface RoomMessage {
   id: string;
   content: string;
-  sender: "Person 1" | "Person 2" | "system";
+  sender: string;
   timestamp: Date;
   type?: "text" | "media";
   mediaData?: string;
@@ -34,7 +34,7 @@ export default function RoomPage() {
   const [messages, setMessages] = React.useState<RoomMessage[]>([]);
   const [inputValue, setInputValue] = React.useState("");
   const [loaded, setLoaded] = React.useState(false);
-  const [partnerOnline, setPartnerOnline] = React.useState(false);
+  const [onlineMembers, setOnlineMembers] = React.useState(0);
   const [viewingMedia, setViewingMedia] = React.useState<string | null>(null);
   const [viewingMediaId, setViewingMediaId] = React.useState<string | null>(null);
   const [viewingMediaKind, setViewingMediaKind] = React.useState<"image" | "gif" | "video" | null>(null);
@@ -80,23 +80,23 @@ export default function RoomPage() {
     socketRef.current = socket;
 
     // Join the room
-    socket.emit("join-room", { roomId: room.roomId, alias: room.alias });
+    socket.emit("join-room", { roomId: room.roomId, roomCode: room.roomCode, alias: room.alias });
 
-    // Partner joined
-    socket.on("room-partner-joined", () => {
-      setPartnerOnline(true);
+    // Member joined
+    socket.on("room-member-joined", (data: { alias: string }) => {
+      setOnlineMembers((prev) => prev + 1);
       setMessages((prev) => [
         ...prev,
-        { id: generateId(), content: "Your partner is online.", sender: "system", timestamp: new Date() },
+        { id: generateId(), content: `${data.alias} joined.`, sender: "system", timestamp: new Date() },
       ]);
     });
 
-    // Partner left
-    socket.on("room-partner-left", () => {
-      setPartnerOnline(false);
+    // Member left
+    socket.on("room-member-left", (data: { alias: string }) => {
+      setOnlineMembers((prev) => Math.max(0, prev - 1));
       setMessages((prev) => [
         ...prev,
-        { id: generateId(), content: "Your partner went offline.", sender: "system", timestamp: new Date() },
+        { id: generateId(), content: `${data.alias || "Someone"} left.`, sender: "system", timestamp: new Date() },
       ]);
     });
 
@@ -107,7 +107,7 @@ export default function RoomPage() {
         {
           id: generateId(),
           content: data.content,
-          sender: data.sender as "Person 1" | "Person 2",
+          sender: data.sender,
           timestamp: new Date(data.timestamp),
         },
       ]);
@@ -120,7 +120,7 @@ export default function RoomPage() {
         {
           id: generateId(),
           content: "View-once media",
-          sender: data.sender as "Person 1" | "Person 2",
+          sender: data.sender,
           timestamp: new Date(data.timestamp),
           type: "media",
           mediaData: data.mediaData,
@@ -151,7 +151,7 @@ export default function RoomPage() {
     });
 
     return () => {
-      socket.emit("leave-room", { roomId: room.roomId });
+      socket.emit("leave-room", { roomId: room.roomId, roomCode: room.roomCode });
       socket.disconnect();
     };
   }, [room]);
@@ -173,6 +173,7 @@ export default function RoomPage() {
 
     socketRef.current?.emit("room-send-message", {
       roomId: room.roomId,
+      roomCode: room.roomCode,
       content,
       sender: room.alias,
     });
@@ -242,6 +243,7 @@ export default function RoomPage() {
 
     socketRef.current?.emit("room-send-media", {
       roomId: room.roomId,
+      roomCode: room.roomCode,
       sender: room.alias,
       mediaData: base64,
       mimeType,
@@ -269,7 +271,7 @@ export default function RoomPage() {
     setViewingMediaId(msgId);
     setViewingMediaKind(kind);
     setViewCountdown(timer > 0 ? timer : null);
-    socketRef.current?.emit("room-media-viewed", { roomId: room?.roomId });
+    socketRef.current?.emit("room-media-viewed", { roomId: room?.roomId, roomCode: room?.roomCode });
   };
 
   const handleCloseMediaViewer = React.useCallback(() => {
@@ -340,10 +342,10 @@ export default function RoomPage() {
               <Lock className="h-3 w-3" />
               Private Room
             </span>
-            {partnerOnline && (
+            {onlineMembers > 0 && (
               <span className="inline-flex items-center gap-1 text-xs font-mono text-green-600">
                 <span className="h-2 w-2 rounded-full bg-green-500"></span>
-                Online
+                {onlineMembers} online
               </span>
             )}
           </div>
@@ -408,6 +410,9 @@ export default function RoomPage() {
                       : "bg-muted"
                   }`}
                 >
+                  {msg.sender !== room?.alias && (
+                    <p className="font-mono text-[10px] text-muted-foreground mb-0.5">{msg.sender}</p>
+                  )}
                   <p className="font-mono text-sm wrap-break-word">{msg.content}</p>
                 </div>
               )}
